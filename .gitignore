@@ -1,0 +1,5 @@
+# Ignore everything inside a "Temp" directory
+Temp/
+
+# Ignore all Visual Studio .vs files
+.vs/
