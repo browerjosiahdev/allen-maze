@@ -5,13 +5,11 @@ using System;
 using UnityEngine.UI;
 
 public class PoseController : MonoBehaviour, ITangoPose {
-    public Text debugText;
     public float speed;
 
     private TangoApplication m_tangoApplication;
     private Vector3 m_tangoPosition;
     private Quaternion m_tangoRotation;
-    private Vector3 m_startPosition;
     private Toggle m_toggleRotation;
     private Toggle m_toggleMovement;
     private Quaternion m_lookRotationDiff;
@@ -26,9 +24,11 @@ public class PoseController : MonoBehaviour, ITangoPose {
     /// </summary>
 	void Start()
     {
+        // Prevent the tablet from falling asleep.
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
         m_tangoRotation = Quaternion.identity;
         m_tangoPosition = Vector3.zero;
-        m_startPosition = transform.position;
         m_tangoApplication = FindObjectOfType<TangoApplication>();
 
         if (m_tangoApplication != null)
@@ -44,20 +44,23 @@ public class PoseController : MonoBehaviour, ITangoPose {
 
         // Get a handle to the rotation and movement toggle elements, and default
         // them to be unchecked.
-        m_toggleRotation = GameObject.Find("Toggle Rotation").GetComponent<Toggle>();
-        m_toggleMovement = GameObject.Find("Toggle Movement").GetComponent<Toggle>();
-
-        if (m_toggleRotation != null)
+        if (GameObject.Find("Rotation Toggle") != null)
         {
+            m_toggleRotation = GameObject.Find("Rotation Toggle").GetComponent<Toggle>();
             m_toggleRotation.isOn = false;
         }
-        if (m_toggleMovement != null)
+        if (GameObject.Find("Movement Toggle") != null)
         {
+            m_toggleMovement = GameObject.Find("Movement Toggle").GetComponent<Toggle>();
             m_toggleMovement.isOn = false;
         }
 
         // Track the look rotation difference.
-        m_lookRotationDiff = Quaternion.LookRotation(Vector3.zero, Vector3.zero);
+        m_lookRotationDiff = new Quaternion();
+        m_lookRotationDiff.x = 0.0f;
+        m_lookRotationDiff.y = 0.0f;
+        m_lookRotationDiff.z = 0.0f;
+        m_lookRotationDiff.w = 0.0f;
     }
 
     /// <summary>
@@ -146,24 +149,11 @@ public class PoseController : MonoBehaviour, ITangoPose {
     /// </summary>
     void Update()
     {
-        /**
-         * TANGO INPUT - POSITION 
-        **/
-        //// Transform the tango position into the Unity coordinate system.
-        //Matrix4x4 uwTuc = TransformTangoPoseToUnityCoordinateSystem(m_tangoPosition, m_tangoRotation, Vector3.one);
+        Debug.Log("m_lookRotationDiff == " + m_lookRotationDiff);
 
-        //// Extract new local position.
-        //transform.position = (uwTuc.GetColumn(3)) * m_movementScale;
-        //transform.position += m_startPosition;
-
-        //// Extract new local rotation.
-        //transform.rotation = Quaternion.LookRotation(uwTuc.GetColumn(2), uwTuc.GetColumn(1));
-
-        /**
-         * TANGO INPUT - VELOCITY
-        **/
         Matrix4x4 uwTuc = TransformTangoPoseToUnityCoordinateSystem(m_tangoPosition, m_tangoRotation, Vector3.one);
         Vector4 movement = uwTuc.GetColumn(3);
+        Rigidbody body = GetComponent<Rigidbody>();
 
         // If movement is valid...
         if (m_toggleMovement == null || !m_toggleMovement.isOn)
@@ -174,7 +164,6 @@ public class PoseController : MonoBehaviour, ITangoPose {
             {
                 // Calculate the movement.
                 Vector3 movementDiff = new Vector3(movement.x, 0.0f, movement.z);
-                Rigidbody body = GetComponent<Rigidbody>();
 
                 movementDiff.x = (movementDiff.x - m_prevMovement.x);
                 movementDiff.z = (movementDiff.z - m_prevMovement.z);
@@ -199,42 +188,55 @@ public class PoseController : MonoBehaviour, ITangoPose {
             // so the user doesn't "jump" to a new location when they turn
             // movement back on.
             m_prevMovement = movement;
+
+            // Zero out the velocity in case the user paused the movement while
+            // they were walking.
+            body.velocity = Vector3.zero;
         }
 
         Quaternion lookRotation = Quaternion.LookRotation(uwTuc.GetColumn(2), uwTuc.GetColumn(1));
+
+        //// Calculate the difference.
+        //lookRotation.x -= m_lookRotationDiff.x;
+        //lookRotation.y -= m_lookRotationDiff.y;
+        //lookRotation.z -= m_lookRotationDiff.z;
+        //lookRotation.w -= m_lookRotationDiff.w;
 
         // If rotation is valid...
         if (m_toggleRotation == null || !m_toggleRotation.isOn)
         {
             // Extract the local rotation based on Tango movement.
-            transform.rotation = Quaternion.Inverse(m_lookRotationDiff) * lookRotation;
+            transform.rotation = lookRotation;
 
             m_lookRotationTracked = false;
         }
         else if (!m_lookRotationTracked)
         {
-            m_lookRotationDiff = lookRotation;
+            m_lookRotationDiff.x = lookRotation.x;
+            m_lookRotationDiff.y = lookRotation.y;
+            m_lookRotationDiff.z = lookRotation.z;
+            m_lookRotationDiff.w = lookRotation.w;
+
             m_lookRotationTracked = true;
         }
 
+        //transform.rotation = lookRotation;
+
         /**
-         * KEYBOARD INPUT
+         * Keyboard Input
         **/
+        //transform.rotation = lookRotation;
+
         //float inputHorz = Input.GetAxis("Horizontal");
         //float inputVert = Input.GetAxis("Vertical");
 
-        //Rigidbody body = GetComponent<Rigidbody>();
-
         //body.velocity = new Vector3(inputHorz, 0.0f, inputVert) * 10f;
-
-        //DebugMessage(inputHorz + ", 0, " + inputVert);
     }
 
-    void DebugMessage( string message )
+    void OnCollisionEnter( Collision collision )
     {
-        if (debugText != null)
-        {
-            debugText.text = message;
-        }
+        Debug.Log("Collision!");
+
+        Handheld.Vibrate();
     }
 }

@@ -70,6 +70,7 @@
   <ItemGroup>
     <Compile Include="Assets\Google-Unity\Scripts\AndroidHelper.cs" />
     <Compile Include="Assets\Google-Unity\Scripts\AndroidLifecycle.cs" />
+    <Compile Include="Assets\Scripts\FinishWallController.cs" />
     <Compile Include="Assets\Scripts\PoseController.cs" />
     <Compile Include="Assets\TangoPrefabs\Scripts\ARCameraPostProcess.cs" />
     <Compile Include="Assets\TangoPrefabs\Scripts\TangoARPoseController.cs" />
